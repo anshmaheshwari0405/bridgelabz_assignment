@@ -1,0 +1,144 @@
+package com.sec3;
+
+import java.util.*;
+
+// Course class with encapsulation
+class Course {
+    private String courseId;
+    private String courseName;
+    private int credits;
+
+    public Course(String courseId, String courseName, int credits) {
+        this.courseId = courseId;
+        this.courseName = courseName;
+        this.credits = credits;
+    }
+
+    public String getCourseId() { return courseId; }
+    public String getCourseName() { return courseName; }
+    public int getCredits() { return credits; }
+}
+
+// Enrollment class (composition: relates Student and Course)
+class Enrollment {
+    private Course course;
+    private double grade; // On 4.0 scale
+
+    public Enrollment(Course course, double grade) {
+        this.course = course;
+        this.grade = grade;
+    }
+
+    public Course getCourse() { return course; }
+    public double getGrade() { return grade; }
+}
+
+// Base class: Student (encapsulation + polymorphism)
+class Student {
+    private String studentId;
+    private String name;
+    private String email;
+    private List<Enrollment> enrollments;
+
+    public Student(String studentId, String name, String email) {
+        this.studentId = studentId;
+        this.name = name;
+        this.email = email;
+        this.enrollments = new ArrayList<>();
+    }
+
+    public String getStudentId() { return studentId; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+
+    // Composition: enrollments
+    public void enroll(Course course, double grade) {
+        enrollments.add(new Enrollment(course, grade));
+    }
+
+    public List<Enrollment> getEnrollments() {
+        return enrollments;
+    }
+
+    // Polymorphic GPA calculation
+    public double calculateGPA() {
+        if (enrollments.isEmpty()) return 0.0;
+        double totalPoints = 0;
+        double totalCredits = 0;
+
+        for (Enrollment e : enrollments) {
+            totalPoints += e.getGrade() * e.getCourse().getCredits();
+            totalCredits += e.getCourse().getCredits();
+        }
+        return totalCredits == 0 ? 0.0 : totalPoints / totalCredits;
+    }
+
+    public void printTranscript() {
+        System.out.println("Transcript for " + name + ":");
+        for (Enrollment e : enrollments) {
+            System.out.println("- " + e.getCourse().getCourseName() + ": " + e.getGrade());
+        }
+        System.out.printf("GPA: %.2f%n", calculateGPA());
+    }
+}
+
+// UndergraduateStudent subclass (inheritance + method overriding)
+class UndergraduateStudent extends Student {
+    public UndergraduateStudent(String studentId, String name, String email) {
+        super(studentId, name, email);
+    }
+
+    // Custom GPA: Cap grades at 4.0
+    @Override
+    public double calculateGPA() {
+        double totalPoints = 0;
+        double totalCredits = 0;
+
+        for (Enrollment e : getEnrollments()) {
+            double grade = Math.min(e.getGrade(), 4.0); // Cap grades for UG
+            totalPoints += grade * e.getCourse().getCredits();
+            totalCredits += e.getCourse().getCredits();
+        }
+        return totalCredits == 0 ? 0.0 : totalPoints / totalCredits;
+    }
+}
+
+// PostgraduateStudent subclass (inheritance + method overriding)
+class PostgraduateStudent extends Student {
+    public PostgraduateStudent(String studentId, String name, String email) {
+        super(studentId, name, email);
+    }
+
+    // Custom GPA: Minimum required GPA is 2.5
+    @Override
+    public double calculateGPA() {
+        double gpa = super.calculateGPA();
+        return gpa < 2.5 ? 0.0 : gpa;
+    }
+}
+
+// Main class for testing
+public class StudentManagementSystem {
+    public static void main(String[] args) {
+        // Create courses
+        Course java = new Course("C101", "Java Programming", 3);
+        Course math = new Course("M101", "Mathematics", 4);
+        Course db = new Course("D101", "Databases", 2);
+
+        // Create students
+        Student s1 = new UndergraduateStudent("UG001", "Alice", "alice@email.com");
+        Student s2 = new PostgraduateStudent("PG001", "Bob", "bob@email.com");
+
+        // Enroll students in courses
+        s1.enroll(java, 3.5);
+        s1.enroll(math, 3.7);
+
+        s2.enroll(java, 2.2); // This should result in GPA = 0 for PG
+        s2.enroll(db, 2.8);
+
+        // Print transcripts
+        s1.printTranscript();
+        System.out.println("---------------------");
+        s2.printTranscript();
+    }
+}
