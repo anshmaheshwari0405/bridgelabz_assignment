@@ -1,144 +1,103 @@
-package com.sec3;
-
-import java.util.*;
-
-// Course class with encapsulation
-class Course {
-    private String courseId;
-    private String courseName;
-    private int credits;
-
-    public Course(String courseId, String courseName, int credits) {
-        this.courseId = courseId;
-        this.courseName = courseName;
-        this.credits = credits;
-    }
-
-    public String getCourseId() { return courseId; }
-    public String getCourseName() { return courseName; }
-    public int getCredits() { return credits; }
+// Interface for logging transactions
+interface TransactionLogger {
+    void logTransaction(Transaction t);
 }
 
-// Enrollment class (composition: relates Student and Course)
-class Enrollment {
-    private Course course;
-    private double grade; // On 4.0 scale
+// Transaction class with encapsulation
+class Transaction {
+    private String transactionId;
+    private String date;
+    private double amount;
+    private String type;
 
-    public Enrollment(Course course, double grade) {
-        this.course = course;
-        this.grade = grade;
+    public Transaction(String transactionId, String date, double amount, String type) {
+        this.transactionId = transactionId;
+        this.date = date;
+        this.amount = amount;
+        this.type = type;
     }
-
-    public Course getCourse() { return course; }
-    public double getGrade() { return grade; }
+    // Getters and setters for encapsulation
+    public String getTransactionId() { return transactionId; }
+    public String getDate() { return date; }
+    public double getAmount() { return amount; }
+    public String getType() { return type; }
 }
 
-// Base class: Student (encapsulation + polymorphism)
-class Student {
-    private String studentId;
-    private String name;
-    private String email;
-    private List<Enrollment> enrollments;
+// Abstract ATM class demonstrating abstraction
+abstract class ATM {
+    protected String location;
+    protected String machineId;
 
-    public Student(String studentId, String name, String email) {
-        this.studentId = studentId;
-        this.name = name;
-        this.email = email;
-        this.enrollments = new ArrayList<>();
+    public ATM(String location, String machineId) {
+        this.location = location;
+        this.machineId = machineId;
+    }
+    public abstract boolean withdraw(Account account, double amount);
+    public abstract boolean deposit(Account account, double amount);
+}
+
+// Account base class
+class Account {
+    protected String accountNumber;
+    protected String holderName;
+    protected double balance;
+    protected List<Transaction> transactions = new ArrayList<>();
+
+    public Account(String accountNumber, String holderName, double balance) {
+        this.accountNumber = accountNumber;
+        this.holderName = holderName;
+        this.balance = balance;
+    }
+    // Other getters/setters for encapsulation
+}
+
+// SavingsAccount with method overriding
+class SavingsAccount extends Account {
+    private final double MIN_BALANCE = 500.0;
+
+    public SavingsAccount(String accountNumber, String holderName, double balance) {
+        super(accountNumber, holderName, balance);
     }
 
-    public String getStudentId() { return studentId; }
-    public String getName() { return name; }
-    public String getEmail() { return email; }
-
-    // Composition: enrollments
-    public void enroll(Course course, double grade) {
-        enrollments.add(new Enrollment(course, grade));
-    }
-
-    public List<Enrollment> getEnrollments() {
-        return enrollments;
-    }
-
-    // Polymorphic GPA calculation
-    public double calculateGPA() {
-        if (enrollments.isEmpty()) return 0.0;
-        double totalPoints = 0;
-        double totalCredits = 0;
-
-        for (Enrollment e : enrollments) {
-            totalPoints += e.getGrade() * e.getCourse().getCredits();
-            totalCredits += e.getCourse().getCredits();
-        }
-        return totalCredits == 0 ? 0.0 : totalPoints / totalCredits;
-    }
-
-    public void printTranscript() {
-        System.out.println("Transcript for " + name + ":");
-        for (Enrollment e : enrollments) {
-            System.out.println("- " + e.getCourse().getCourseName() + ": " + e.getGrade());
-        }
-        System.out.printf("GPA: %.2f%n", calculateGPA());
+    // Overridden withdraw method
+    public boolean withdraw(double amount) {
+        if(balance - amount < MIN_BALANCE)
+            return false;
+        balance -= amount;
+        return true;
     }
 }
 
-// UndergraduateStudent subclass (inheritance + method overriding)
-class UndergraduateStudent extends Student {
-    public UndergraduateStudent(String studentId, String name, String email) {
-        super(studentId, name, email);
+// CurrentAccount with simple withdraw
+class CurrentAccount extends Account {
+    public CurrentAccount(String accountNumber, String holderName, double balance) {
+        super(accountNumber, holderName, balance);
     }
 
-    // Custom GPA: Cap grades at 4.0
-    @Override
-    public double calculateGPA() {
-        double totalPoints = 0;
-        double totalCredits = 0;
-
-        for (Enrollment e : getEnrollments()) {
-            double grade = Math.min(e.getGrade(), 4.0); // Cap grades for UG
-            totalPoints += grade * e.getCourse().getCredits();
-            totalCredits += e.getCourse().getCredits();
-        }
-        return totalCredits == 0 ? 0.0 : totalPoints / totalCredits;
+    public boolean withdraw(double amount) {
+        if(balance < amount)
+            return false;
+        balance -= amount;
+        return true;
     }
 }
 
-// PostgraduateStudent subclass (inheritance + method overriding)
-class PostgraduateStudent extends Student {
-    public PostgraduateStudent(String studentId, String name, String email) {
-        super(studentId, name, email);
+// Implementation of ATM and TransactionLogger
+class ConcreteATM extends ATM implements TransactionLogger {
+    public ConcreteATM(String location, String machineId) {
+        super(location, machineId);
     }
-
-    // Custom GPA: Minimum required GPA is 2.5
-    @Override
-    public double calculateGPA() {
-        double gpa = super.calculateGPA();
-        return gpa < 2.5 ? 0.0 : gpa;
+    public boolean withdraw(Account account, double amount) {
+        boolean result = account.withdraw(amount);
+        if(result) logTransaction(new Transaction(generateId(), getCurrentDate(), amount, "withdrawal"));
+        return result;
     }
-}
-
-// Main class for testing
-public class StudentManagementSystem {
-    public static void main(String[] args) {
-        // Create courses
-        Course java = new Course("C101", "Java Programming", 3);
-        Course math = new Course("M101", "Mathematics", 4);
-        Course db = new Course("D101", "Databases", 2);
-
-        // Create students
-        Student s1 = new UndergraduateStudent("UG001", "Alice", "alice@email.com");
-        Student s2 = new PostgraduateStudent("PG001", "Bob", "bob@email.com");
-
-        // Enroll students in courses
-        s1.enroll(java, 3.5);
-        s1.enroll(math, 3.7);
-
-        s2.enroll(java, 2.2); // This should result in GPA = 0 for PG
-        s2.enroll(db, 2.8);
-
-        // Print transcripts
-        s1.printTranscript();
-        System.out.println("---------------------");
-        s2.printTranscript();
+    public boolean deposit(Account account, double amount) {
+        account.balance += amount;
+        logTransaction(new Transaction(generateId(), getCurrentDate(), amount, "deposit"));
+        return true;
+    }
+    public void logTransaction(Transaction t) {
+        // Log transaction logic
     }
 }
